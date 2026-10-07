@@ -1,0 +1,120 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import {
+  ambilSite,
+  listLapakTersedia,
+  listPengumuman,
+  statistikRingkas,
+} from '../lib/db';
+import { inisial } from '../data/site';
+import { fotoSrc } from '../lib/foto';
+
+const q = Astro.url.searchParams;
+
+// Tautan lama sebelum katalog pindah ke halamannya sendiri.
+if (q.has('cari') || q.has('lapak') || q.has('halaman')) {
+  return Astro.redirect(`/katalog?${q.toString()}`, 301);
+}
+
+const site = await ambilSite();
+const stat = await statistikRingkas();
+const lapak = await listLapakTersedia();
+// Beranda cuma menampilkan info terbaru. Arsip lengkap cukup di panel admin.
+const pengumuman = (await listPengumuman(true)).slice(0, 4);
+---
+
+<BaseLayout>
+  <section class="seks-luas mx-auto max-w-5xl px-4 sm:px-6">
+    <div class="flex max-w-2xl flex-col gap-5">
+      <h1 class="judul-hero text-stone-900">{site.tagline}</h1>
+      <p class="text-base text-stone-600 prosa">
+        Piala dan trophy untuk berbagai acara seperti lomba, turnamen, penghargaan,
+        pernikahan, ulang tahun, dan acara korporasi. Tersedia berbagai model, ukuran,
+        dan bisa custom sesuai kebutuhan.
+      </p>
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <a
+          href="/katalog"
+          class="target-sentuh inline-flex items-center rounded-md bg-aksi px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800"
+        >
+          Lihat katalog
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="seks-rapat mx-auto max-w-5xl px-4 sm:px-6" aria-label="Ringkasan katalog">
+    <dl class="grid grid-cols-2 divide-x divide-garis border-y border-garis">
+      <div class="px-4 py-5 sm:px-6">
+        <dt class="text-sm text-stone-600">Produk tersedia</dt>
+        <dd class="mt-1 text-2xl font-bold text-stone-900">{stat.unitTersedia}</dd>
+      </div>
+      <div class="px-4 py-5 sm:px-6">
+        <dt class="text-sm text-stone-600">Penjual</dt>
+        <dd class="mt-1 text-2xl font-bold text-stone-900">{stat.penjual}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="seks-rapat mx-auto max-w-5xl px-4 sm:px-6">
+    <div class="mb-5">
+      <h2 class="kepala-seksi text-stone-900">Penjual</h2>
+      <p class="text-sm text-stone-600">Lapak yang punya produk siap dilihat saat ini.</p>
+    </div>
+
+    {
+      lapak.length > 0 ? (
+        <ul class="tutup-bidang grid border-t border-l border-garis sm:grid-cols-2 lg:grid-cols-3">
+          {lapak.map((l) => (
+            <li>
+              <a
+                href={`/lapak/${l.slug}`}
+                class="target-sentuh flex items-center gap-3 border-r border-b border-garis px-4 py-4 hover:bg-stone-100"
+              >
+                {l.foto ? (
+                  <img
+                    src={fotoSrc(l.foto, 'thumb')}
+                    alt=""
+                    width={40}
+                    height={40}
+                    class="size-10 shrink-0 rounded-md border border-garis bg-stone-100 object-cover"
+                  />
+                ) : (
+                  <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-stone-900 text-sm font-bold text-white">
+                    {inisial(l.nama)}
+                  </span>
+                )}
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate font-semibold text-stone-900">{l.nama}</span>
+                  <span class="block text-sm text-stone-600">{l.jumlah} produk tersedia</span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="rounded-md border border-garis bg-stone-100 px-4 py-8 text-center text-sm text-stone-600">
+          Belum ada lapak penjual yang punya produk tersedia. Coba lihat katalog toko ini.
+        </p>
+      )
+    }
+  </section>
+
+  {
+    pengumuman.length > 0 && (
+      <section class="seks-rapat mx-auto max-w-5xl px-4 sm:px-6">
+        <div class="mb-5">
+          <h2 class="kepala-seksi text-stone-900">Pengumuman</h2>
+        </div>
+        <ul class="flex flex-col divide-y divide-garis border-y border-garis">
+          {pengumuman.map((p) => (
+            <li class="py-5">
+              <h3 class="font-semibold text-stone-900">{p.judul}</h3>
+              <p class="mt-1 text-sm text-stone-700 whitespace-pre-line">{p.isi}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+</BaseLayout>

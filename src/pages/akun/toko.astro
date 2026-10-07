@@ -1,0 +1,269 @@
+---
+import AkunLayout from '../../layouts/AkunLayout.astro';
+import { bacaSesi, buatToken, buatCsrf, cookieAman, COOKIE_AKUN } from '../../lib/auth';
+import {
+  ambilPengguna,
+  ambilLapak,
+  cekKataSandiPengguna,
+  setKataSandiPengguna,
+  setFotoLapak,
+  simpanLapak,
+} from '../../lib/db';
+import { simpanFoto, hapusFoto, fotoSrc } from '../../lib/foto';
+import { normalisasiWa, waValid, inisial } from '../../data/site';
+import { cekCsrf, teksForm, NOTIF } from '../../lib/forms';
+
+const pengguna = Astro.locals.pengguna!;
+const sesi = await bacaSesi(Astro.cookies, COOKIE_AKUN, 'seller');
+const csrf = sesi?.csrf ?? '';
+const lapak = await ambilLapak(pengguna.id);
+
+let galat: string | null = null;
+let ok: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  const fd = await Astro.request.formData();
+  if (!cekCsrf(fd, sesi)) {
+    return Astro.redirect('/akun/toko?notif=salahfasilitas');
+  }
+  const aksi = teksForm(fd, 'aksi');
+  if (aksi === 'toko') {
+    const nama = teksForm(fd, 'nama');
+    const whatsapp = normalisasiWa(teksForm(fd, 'whatsapp'));
+    const deskripsi = teksForm(fd, 'deskripsi');
+    const lokasi = teksForm(fd, 'lokasi');
+    if (!nama) {
+      galat = 'Nama toko wajib diisi.';
+    } else if (whatsapp && !waValid(whatsapp)) {
+      galat = 'Nomor WhatsApp tidak valid.';
+    } else {
+      try {
+        await simpanLapak(pengguna.id, { nama, whatsapp, deskripsi, lokasi });
+        return Astro.redirect('/akun/toko?notif=tokosimpan');
+      } catch (err) {
+        galat = err instanceof Error ? err.message : 'Gagal menyimpan.';
+      }
+    }
+  } else if (aksi === 'sandi') {
+    const sekarang = teksForm(fd, 'kataSandi');
+    const baru = teksForm(fd, 'kataSandiBaru');
+    const ulangi = teksForm(fd, 'kataSandiBaru2');
+    if (!(await cekKataSandiPengguna(pengguna.id, sekarang))) {
+      galat = 'Kata sandi saat ini salah.';
+    } else if (baru.length < 8) {
+      galat = 'Kata sandi baru minimal 8 karakter.';
+    } else if (baru.length > 200) {
+      galat = 'Kata sandi baru maksimal 200 karakter.';
+    } else if (baru !== ulangi) {
+      galat = 'Ulangi kata sandi tidak sama.';
+    } else {
+      await setKataSandiPengguna(pengguna.id, baru);
+      // Versi sesi naik, jadi token lama tidak berlaku lagi. Terbitkan token
+      // baru untuk perangkat ini supaya seller tidak ikut terlempar keluar.
+      const segar = await ambilPengguna(pengguna.id);
+      Astro.cookies.set(
+        COOKIE_AKUN,
+        buatToken(pengguna.id, 'seller', sesi?.csrf ?? buatCsrf(), segar?.sesiVersi ?? 0),
+        {
+          path: '/',
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: cookieAman(Astro.request, Astro.url),
+          maxAge: 7 * 24 * 60 * 60,
+        },
+      );
+      return Astro.redirect('/akun/toko?notif=sandiberubah');
+    }
+  } else if (aksi === 'foto') {
+    const file = fd.get('fotoBaru');
+    if (!lapak) {
+      galat = 'Simpan identitas toko dulu sebelum mengunggah foto.';
+    } else if (!(file instanceof File) || file.size === 0) {
+      galat = 'Pilih file foto dulu.';
+    } else if (!file.type.startsWith('image/')) {
+      galat = 'File harus berupa gambar JPG, PNG, atau WebP.';
+    } else {
+      try {
+        const lama = lapak.foto;
+        const nama = await simpanFoto(file, lapak.slug);
+        await setFotoLapak(pengguna.id, nama);
+        // File lama dihapus setelah yang baru tersimpan, supaya kalau unggah
+        // gagal foto lama tidak ikut hilang.
+        if (lama) hapusFoto(lama);
+        return Astro.redirect('/akun/toko?notif=fotolapak');
+      } catch (err) {
+        galat = err instanceof Error ? err.message : 'Gagal mengunggah foto.';
+      }
+    }
+  } else if (aksi === 'hapusfoto') {
+    if (lapak?.foto) {
+      await setFotoLapak(pengguna.id, '');
+      hapusFoto(lapak.foto);
+    }
+    return Astro.redirect('/akun/toko?notif=fotohapus');
+  }
+}
+
+const param = Astro.url.searchParams.get('notif');
+const notif = galat
+  ? { jenis: 'err' as const, teks: galat }
+  : (ok ?? (param ? NOTIF[param] : null));
+---
+
+<AkunLayout title="Setelan toko" pengguna={pengguna} notif={notif}>
+  <header class="mb-6">
+    <h1 class="text-xl font-bold tracking-tight text-stone-900">Setelan toko</h1>
+    <p class="mt-1 text-sm text-stone-600">Foto, nama, WhatsApp, dan deskripsi lapakmu tampil di halaman publik.</p>
+  </header>
+
+  <section class="mb-8 rounded-md border border-garis p-5">
+    <h2 class="text-sm font-bold text-stone-900">Foto toko</h2>
+    <p class="mt-1 text-sm text-stone-600">Dipakai sebagai avatar tokomu. Kalau belum ada, pembeli melihat inisial nama toko.</p>
+    <div class="mt-4 flex items-start gap-4">
+      <form method="post" action="/akun/toko" enctype="multipart/form-data" class="shrink-0">
+        <input type="hidden" name="csrf" value={csrf} />
+        <input type="hidden" name="aksi" value="foto" />
+        <label
+          class="group relative block size-16 cursor-pointer rounded-md border border-garis focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-aksi-teks"
+        >
+          {
+            lapak?.foto ? (
+              <img
+                src={fotoSrc(lapak.foto, 'thumb')}
+                alt={`Foto ${lapak.nama}`}
+                width={64}
+                height={64}
+                class="size-full rounded-md bg-stone-100 object-cover"
+              />
+            ) : (
+              <span class="flex size-full items-center justify-center rounded-md bg-stone-900 font-sans text-lg font-bold text-white">
+                {inisial(pengguna.nama)}
+              </span>
+            )
+          }
+          <span
+            aria-hidden="true"
+            class="absolute inset-0 flex flex-col items-center justify-center gap-0.5 rounded-md bg-stone-900/70 text-white opacity-0 transition-opacity motion-reduce:transition-none group-hover:opacity-100 group-focus-within:opacity-100"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="size-5"
+              aria-hidden="true"
+            >
+              <path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.2a1.5 1.5 0 0 0 1.3-.75l.6-1A1.5 1.5 0 0 1 9.9 3.5h4.2a1.5 1.5 0 0 1 1.3.75l.6 1A1.5 1.5 0 0 0 17.3 6h1.2A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" />
+              <circle cx="12" cy="12.5" r="3.2" />
+            </svg>
+            <span class="text-[0.625rem] font-semibold">{lapak?.foto ? 'Ganti' : 'Pilih'}</span>
+          </span>
+          <span class="sr-only">{lapak?.foto ? 'Ganti foto toko' : 'Pilih foto toko'}</span>
+          <input
+            id="fotoBaru"
+            type="file"
+            name="fotoBaru"
+            accept="image/jpeg,image/png,image/webp"
+            required
+            class="sr-only"
+            onchange="this.form.requestSubmit()"
+          />
+        </label>
+        <noscript>
+          <button
+            type="submit"
+            class="target-sentuh mt-2 inline-flex items-center rounded-md border border-stone-300 px-3 text-xs font-semibold text-stone-900 hover:bg-stone-100"
+          >
+            Unggah foto
+          </button>
+        </noscript>
+      </form>
+      <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+        <p class="text-xs text-stone-600">JPG, PNG, atau WebP, maksimal 12 MB.</p>
+        {
+          lapak?.foto && (
+            <form method="post" action="/akun/toko">
+              <input type="hidden" name="csrf" value={csrf} />
+              <input type="hidden" name="aksi" value="hapusfoto" />
+              <button type="submit" class="target-sentuh inline-flex items-center text-sm font-medium text-red-800 underline">
+                Hapus foto
+              </button>
+            </form>
+          )
+        }
+      </div>
+    </div>
+  </section>
+
+  <form method="post" action="/akun/toko" class="mb-8 flex flex-col gap-4 rounded-md border border-garis p-5">
+    <input type="hidden" name="csrf" value={csrf} />
+    <input type="hidden" name="aksi" value="toko" />
+    <h2 class="text-sm font-bold text-stone-900">Identitas lapak</h2>
+    <label class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-stone-900">Nama toko</span>
+      <input
+        name="nama"
+        required
+        maxlength="80"
+        value={lapak?.nama ?? pengguna.nama}
+        class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none"
+      />
+    </label>
+    <label class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-stone-900">WhatsApp</span>
+      <input
+        name="whatsapp"
+        inputmode="numeric"
+        placeholder="0812 3456 7890"
+        value={lapak?.whatsapp ?? ''}
+        class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none"
+      />
+      <span class="text-xs text-stone-600">Kosongkan kalau tidak ingin menampilkan tombol WA di produkmu.</span>
+    </label>
+    <label class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-stone-900">Lokasi</span>
+      <input
+        name="lokasi"
+        maxlength="120"
+        placeholder="Jakarta"
+        value={lapak?.lokasi ?? ''}
+        class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none"
+      />
+    </label>
+    <label class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-stone-900">Deskripsi lapak</span>
+      <textarea name="deskripsi" rows="4" class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none">{lapak?.deskripsi ?? ''}</textarea>
+    </label>
+    <div>
+      <button type="submit" class="target-sentuh inline-flex items-center rounded-md bg-aksi px-4 text-sm font-semibold text-white hover:bg-emerald-800">
+        Simpan pengaturan
+      </button>
+    </div>
+  </form>
+
+  <form method="post" action="/akun/toko" class="flex flex-col gap-4 rounded-md border border-garis p-5">
+    <input type="hidden" name="csrf" value={csrf} />
+    <input type="hidden" name="aksi" value="sandi" />
+    <h2 class="text-sm font-bold text-stone-900">Ganti kata sandi</h2>
+    <label class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-stone-900">Kata sandi saat ini</span>
+      <input type="password" name="kataSandi" required autocomplete="current-password" class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none" />
+    </label>
+    <label class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-stone-900">Kata sandi baru</span>
+      <input type="password" name="kataSandiBaru" required minlength="8" autocomplete="new-password" class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none" />
+      <span class="text-xs text-stone-600">Minimal 8 karakter.</span>
+    </label>
+    <label class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-stone-900">Ulangi kata sandi baru</span>
+      <input type="password" name="kataSandiBaru2" required minlength="8" autocomplete="new-password" class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none" />
+    </label>
+    <div>
+      <button type="submit" class="target-sentuh inline-flex items-center rounded-md bg-aksi px-4 text-sm font-semibold text-white hover:bg-emerald-800">
+        Ganti kata sandi
+      </button>
+    </div>
+  </form>
+</AkunLayout>

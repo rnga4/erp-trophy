@@ -1,0 +1,99 @@
+---
+import '../styles/global.css';
+
+import { bacaSesi, COOKIE_AKUN } from '../lib/auth';
+import { ambilLapak, type Pengguna } from '../lib/db';
+import Kembali from '../components/Kembali.astro';
+import NavBawah from '../components/NavBawah.astro';
+import MenuAkun from '../components/MenuAkun.astro';
+
+interface Props {
+  title: string;
+  pengguna: Pengguna;
+  notif?: { jenis: 'ok' | 'err'; teks: string } | null;
+}
+
+const { title, pengguna, notif = null } = Astro.props;
+const sesi = Astro.locals.pengguna ?? pengguna;
+const lapak = await ambilLapak(sesi.id);
+const sesiAkun = await bacaSesi(Astro.cookies, COOKIE_AKUN, 'seller');
+const csrf = sesiAkun?.csrf ?? '';
+const aktif = Astro.url.pathname.replace(/\/$/, '') || '/akun';
+const namaToko = lapak?.nama ?? 'Toko saya';
+---
+
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{title} · Toko saya</title>
+    <link rel="icon" type="image/png+xml" href="/favicon.png" />
+  </head>
+  <body class="bg-dasar font-sans text-stone-900 antialiased">
+    <header class="border-b border-garis bg-dasar">
+      <div class="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-3 sm:px-6 md:flex-row md:items-center md:gap-3">
+        <div class="flex min-w-0 items-center justify-between gap-3 md:contents">
+          <Kembali href="/" label="Beranda" statis />
+          <nav class="hidden flex-wrap items-center gap-1 md:flex" aria-label="Navigasi toko desktop">
+            <a
+              href="/akun"
+              aria-current={aktif === '/akun' ? 'page' : 'false'}
+              class="target-sentuh inline-flex items-center rounded-md px-3 text-xs font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900 aria-[current=page]:bg-stone-200/60 aria-[current=page]:font-semibold aria-[current=page]:text-stone-900"
+            >
+              Produk saya
+            </a>
+            <a
+              href="/akun/tambah"
+              aria-current={aktif === '/akun/tambah' ? 'page' : 'false'}
+              class="target-sentuh inline-flex items-center rounded-md px-3 text-xs font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900 aria-[current=page]:bg-stone-200/60 aria-[current=page]:font-semibold aria-[current=page]:text-stone-900"
+            >
+              Tambah produk
+            </a>
+          </nav>
+          <MenuAkun nama={namaToko} foto={lapak?.foto} csrf={csrf} lapakSlug={lapak?.slug} kelas="md:ml-auto" />
+        </div>
+        <nav class="flex flex-wrap items-center gap-1 md:hidden" aria-label="Navigasi toko mobile">
+          <a
+            href="/akun"
+            aria-current={aktif === '/akun' ? 'page' : 'false'}
+            class="target-sentuh inline-flex items-center rounded-md px-2.5 text-xs font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900 aria-[current=page]:bg-stone-200/60 aria-[current=page]:font-semibold aria-[current=page]:text-stone-900"
+          >
+            Produk saya
+          </a>
+          <a
+            href="/akun/tambah"
+            aria-current={aktif === '/akun/tambah' ? 'page' : 'false'}
+            class="target-sentuh inline-flex items-center rounded-md px-2.5 text-xs font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900 aria-[current=page]:bg-stone-200/60 aria-[current=page]:font-semibold aria-[current=page]:text-stone-900"
+          >
+            Tambah produk
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      {
+        notif && (
+          <div
+            class={`mb-6 rounded-md border px-4 py-3 text-sm ${
+              notif.jenis === 'ok'
+                ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
+                : 'border-red-700 bg-red-50 text-red-900'
+            }`}
+            role="status"
+          >
+            {notif.teks}
+          </div>
+        )
+      }
+      <slot />
+    </main>
+    <NavBawah />
+  </body>
+</html>
+
+<script>
+  if (document.querySelector('[role="status"]')) window.scrollTo(0, 0);
+</script>

@@ -1,0 +1,70 @@
+{
+  "_catatan": "Data contoh untuk menampilkan skema piala/trophy. Ganti dengan produk asli.",
+  "hp": [
+    {
+      "slug": "piala-juara-1",
+      "nama": "Piala Juara 1",
+      "merk": "resin",
+      "seri": "30 cm",
+      "warna": "emas",
+      "kondisi": "mulus",
+      "harga": 150000,
+      "hargaAsli": null,
+      "tersedia": true,
+      "kelengkapan": [
+        "Plat nama diukir gratis",
+        "Dudukan piala"
+      ],
+      "catatan": [
+        "Tinggi 30 cm, berat kira-kira 1,2 kg",
+        "Juara 1 sampai 3 bisa dibuat berurutan",
+        "Nama pemenang dan acara diukir di plat"
+      ],
+      "deskripsi": "Piala resin standar untuk juara 1 lomba atau turnamen, tinggi 30 cm dengan finishing mengilap. Plat bawah siap diukir nama pemenang dan nama acara.",
+      "foto": []
+    },
+    {
+      "slug": "trophy-akrilik-korporasi",
+      "nama": "Trophy Akrilik",
+      "merk": "akrilik bening",
+      "seri": "25 cm",
+      "warna": "bening dan perak",
+      "kondisi": "mulus",
+      "harga": 180000,
+      "hargaAsli": 200000,
+      "tersedia": true,
+      "kelengkapan": [
+        "Cetak logo di tengah",
+        "Kotak kemasan"
+      ],
+      "catatan": [
+        "Logo dicetak dari file yang kamu kirim",
+        "Tanpa tulisan kalau cuma mau siluet",
+        "Dudukan kayu menyatu dengan badan akrilik"
+      ],
+      "deskripsi": "Trophy lempengan akrilik bening setinggi 25 cm dengan dudukan kayu, cocok untuk penghargaan korporasi atau kenang-kenangan. Tulisan dan logo dicetak sesuai kebutuhan acara.",
+      "foto": []
+    },
+    {
+      "slug": "piala-kayu-souvenir",
+      "nama": "Piala Kayu Souvenir",
+      "merk": "kayu",
+      "seri": "12 cm",
+      "warna": "cokelat natural",
+      "kondisi": "minus",
+      "harga": 60000,
+      "hargaAsli": 90000,
+      "tersedia": true,
+      "kelengkapan": [
+        "Kotak kemasan"
+      ],
+      "catatan": [
+        "Sisa stok pameran",
+        "Lecet halus di sisi kanan bawah",
+        "Harga sudah termasuk potongan"
+      ],
+      "deskripsi": "Piala mini berbahan kayu setinggi 12 cm, biasanya dipakai untuk hadiah perlombaan kecil atau kenang-kenangan acara. Kondisi bekas pajangan, lecet halus di sisi kanan bawah.",
+      "foto": []
+    }
+  ]
+}

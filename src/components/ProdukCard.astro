@@ -1,0 +1,78 @@
+---
+import type { UnitProduk } from '../lib/db';
+import { hargaTercoret } from '../lib/db';
+import { rupiah, gabung, namaVt } from '../lib/format';
+import { fotoSrc } from '../lib/foto';
+import KondisiBadge from './KondisiBadge.astro';
+
+interface Props {
+  unit: UnitProduk;
+  urut?: number;
+  /** Nama toko penjual. Kalau diisi, kartu jadi bisa filter per penjual. */
+  penjualNama?: string;
+  /** Slug lapak penjual, dipakai sebagai filter di katalog. */
+  lapakSlug?: string | null;
+}
+
+const { unit, urut = 0, penjualNama, lapakSlug } = Astro.props;
+const coret = hargaTercoret(unit);
+const fotoUtama = unit.foto[0] ?? null;
+const ringkas = gabung([unit.merk, unit.seri]);
+---
+
+<a
+  href={`/produk/${unit.slug}`}
+  class="kartu-masuk group flex h-full flex-col border-r border-b border-garis hover:bg-stone-100"
+  style={`--i:${Math.min(urut, 8)}`}
+  aria-label={`Lihat ${unit.nama}, ${rupiah(unit.harga)}`}
+>
+  <div class="aspect-[4/5] overflow-hidden bg-stone-100" style={`view-transition-name:${namaVt(unit.slug)}`}>
+    {
+      fotoUtama && (
+        <img
+          src={fotoSrc(fotoUtama, 'thumb')}
+          alt={`Foto ${unit.nama}: ${unit.warna}`}
+          data-fade
+          loading="lazy"
+          decoding="async"
+          width="400"
+          height="500"
+          class="size-full object-cover zoom-kartu"
+        />
+      )
+    }
+  </div>
+  <div class="flex flex-col gap-1.5 p-4">
+    <div class="flex items-center justify-between gap-2">
+      <KondisiBadge kondisi={unit.kondisi} />
+      {ringkas && <span class="text-xs text-stone-600">{ringkas}</span>}
+    </div>
+    <h3 class="text-sm font-semibold text-stone-900">{unit.nama}</h3>
+    {
+      penjualNama && (
+        <p class="truncate text-xs text-stone-500">
+          {'Dijual oleh '}
+          {lapakSlug ? (
+            <span class="underline decoration-stone-300">{penjualNama}</span>
+          ) : (
+            <span>{penjualNama}</span>
+          )}
+        </p>
+      )
+    }
+    <div class="flex items-baseline gap-2">
+      {
+        coret ? (
+          <span class="text-sm font-bold text-aksi-teks">{rupiah(unit.harga)}</span>
+        ) : (
+          <span class="text-sm font-bold text-stone-900">{rupiah(unit.harga)}</span>
+        )
+      }
+      {
+        coret && (
+          <span class="text-xs text-stone-500 line-through">{rupiah(coret)}</span>
+        )
+      }
+    </div>
+  </div>
+</a>

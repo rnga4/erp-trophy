@@ -1,0 +1,86 @@
+---
+import '../styles/global.css';
+
+import { ambilSite } from '../lib/db';
+import { urlAbsolut } from '../data/site';
+import fontLatin from '../assets/plus-jakarta-sans-latin-wght-normal.woff2?url';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import NavBawah from '../components/NavBawah.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+  /** Beranda tidak memakai tombol kembali karena tidak ada halaman sebelumnya. */
+  kembali?: { href: string; label: string } | null;
+}
+
+const site = await ambilSite();
+
+const {
+  title = site.namaLengkap,
+  description = site.deskripsi,
+  ogImage = '/og-default.png',
+  kembali = null,
+} = Astro.props;
+
+const judulHalaman = title === site.namaLengkap ? site.namaLengkap : `${title} · ${site.nama}`;
+const canonical = urlAbsolut(Astro.url.pathname, Astro.site);
+const ogAbsolut = urlAbsolut(ogImage, Astro.site);
+---
+
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{judulHalaman}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={judulHalaman} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogAbsolut} />
+    <meta property="og:locale" content="id_ID" />
+    <meta property="og:site_name" content={site.namaLengkap} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preload" as="font" type="font/woff2" href={fontLatin} crossorigin />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <script is:inline>
+      /* Saat halaman datang lewat view transition, snapshot diambil di pagereveal:
+         kalau animasi masuk dan foto masih disembunyikan, yang terekam kotak
+         kosong dan isinya baru nongol setelah transisi selesai. Jadi di sini isi
+         langsung dipulihkan ke keadaan akhir. Flag di <html> sengaja dibiarkan
+         selama umur halaman: kalau dilepas, animasi masuk malah dijalankan ulang
+         dari nol tepat saat transisi selesai. Halaman ini penuh muat ulang, jadi
+         flag tidak perlu dibersihkan. */
+      addEventListener('pagereveal', (e) => {
+        if (!e || !e.viewTransition) return;
+        document.documentElement.classList.add('sedang-transisi');
+        for (const img of document.querySelectorAll('img[data-fade]')) img.classList.remove('foto-tunggu');
+      });
+    </script>
+    <slot name="head" />
+  </head>
+  <body>
+    <Header kembali={kembali} />
+    <main>
+      <slot />
+    </main>
+    <Footer />
+    <NavBawah />
+  </body>
+</html>
+
+<script>
+  for (const img of document.querySelectorAll<HTMLImageElement>('img[data-fade]')) {
+    if (img.complete) continue;
+    if (document.documentElement.classList.contains('sedang-transisi')) continue;
+    img.classList.add('foto-tunggu');
+    const buka = () => img.classList.remove('foto-tunggu');
+    img.addEventListener('load', buka, { once: true });
+    img.addEventListener('error', buka, { once: true });
+  }
+</script>

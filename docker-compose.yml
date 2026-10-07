@@ -1,0 +1,152 @@
+name: trophy-marketplace
+
+services:
+  # Database: Postgres 16. Satu-satunya tempat seluruh data situs, dan
+  # satu-satunya sumber kebenaran untuk session secret.
+  db:
+    image: postgres:16-alpine
+    container_name: trophy-marketplace-db
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Jakarta
+      POSTGRES_DB: ${POSTGRES_DB:-hpsecond}
+      POSTGRES_USER: ${POSTGRES_USER:-hpsecond}
+      # Wajib diisi. Password ikut disisipkan ke DATABASE_URL di bawah, jadi
+      # pakai huruf dan angka saja — karakter khusus harus di-URL-encode manual
+      # dan mudah salah.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi di .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Dijalankan sekali saat folder data di atas masih kosong, yaitu saat
+      # container pertama kali dibuat. Skema dibuat ulang-dijalankan, jadi
+      # volume yang sudah terisi tidak akan throws atau wiped.
+      - ./docker/postgres/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hpsecond} -d ${POSTGRES_DB:-hpsecond}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+    networks:
+      - internal
+
+  # Aplikasi: Astro SSR (Node adapter) + Postgres. Foto tetap di volume ./data/foto.
+  app:
+    build:
+      context: .
+      target: app
+      args:
+        SITE_URL: ${SITE_URL:-http://localhost:${PUBLIC_HTTP_PORT:-8096}}
+        SECURITY_ALLOWED_HOST: ${SECURITY_ALLOWED_HOST:-}
+    image: trophy-marketplace-app:latest
+    container_name: trophy-marketplace-app
+    restart: unless-stopped
+    init: true
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Jakarta
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATA_DIR: /data
+      # Nama host "db" hanya berlaku di dalam network compose. Postgres tidak
+      # pernah dipublish ke host, jadi tidak bisa dijangkau dari luar.
+      DATABASE_URL: postgres://${POSTGRES_USER:-hpsecond}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hpsecond}
+      # Kosongkan untuk pakai nilai bawaan aman:
+      # - SESSION_SECRET dibaca dari baris session_secret di Postgres
+      # - ADMIN_PASSWORD dibuat acak saat DB baru, dicetak di log sekali saja
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SEED_DEMO: ${SEED_DEMO:-0}
+    volumes:
+      - ./data:/data
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+    networks:
+      - internal
+
+  # Gerbang Nginx: statis + foto dari volume, sisanya proxy ke app.
+  web:
+    build:
+      context: .
+      target: web
+    image: trophy-marketplace-web:latest
+    container_name: trophy-marketplace-web
+    restart: unless-stopped
+    init: true
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${PUBLIC_HTTP_PORT:-8096}:80"
+    environment:
+      TZ: Asia/Jakarta
+    volumes:
+      - ./data/foto:/usr/share/nginx/foto:ro
+    read_only: true
+    tmpfs:
+      - /var/run:uid=101,gid=101,mode=0755
+      - /var/cache/nginx:uid=101,gid=101,mode=0755
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - NET_BIND_SERVICE
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+    networks:
+      - internal
+
+  # Opsional: ekspos ke internet tanpa IP publik lewat Cloudflare Tunnel.
+  # Aktifkan dengan: docker compose --profile tunnel up -d
+  tunnel:
+    image: cloudflare/cloudflared:2026.7.3
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    command: >
+      tunnel --no-autoupdate run --token ${TUNNEL_TOKEN:-placeholder}
+    networks:
+      - internal
+
+volumes:
+  # Data Postgres. Jangan ikut terhapus saat `docker compose down` (tanpa -v),
+  # dan tetap dicadangkan terpisah: ini satu-satunya salinan data situs.
+  db-data:
+
+networks:
+  internal:
+    driver: bridge

@@ -1,0 +1,50 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import UnitForm from '../../components/admin/UnitForm.astro';
+import { getUnit, createUnit } from '../../lib/db';
+import { bacaSesi } from '../../lib/auth';
+import { cekCsrf } from '../../lib/forms';
+import { unitDariForm, slugDariForm, prosesFotoUpload } from '../../lib/formUnit';
+
+const sesi = await bacaSesi(Astro.cookies);
+const csrf = sesi?.csrf ?? '';
+
+let galat: string | null = null;
+let nilaiForm: Partial<import('../../lib/db').UnitProduk> | undefined = undefined;
+
+if (Astro.request.method === 'POST') {
+  const fd = await Astro.request.formData();
+  if (!cekCsrf(fd, sesi)) {
+    return Astro.redirect('/admin?notif=salahfasilitas');
+  }
+  const unit = unitDariForm(fd);
+  nilaiForm = unit;
+  const slug = await slugDariForm(fd, unit.nama, async (s) => !!(await getUnit(s)));
+  if (!unit.harga || unit.harga <= 0) {
+    galat = 'Harga wajib diisi dan lebih dari 0.';
+  } else if (!slug) {
+    galat = 'Slug tidak valid atau sudah dipakai produk lain. Ubah nama atau isi slug manual.';
+  } else {
+    try {
+      unit.foto = await prosesFotoUpload(fd, slug, unit.foto ?? []);
+      await createUnit(slug, unit);
+      return Astro.redirect('/admin?notif=tersimpan');
+    } catch (err) {
+      galat = err instanceof Error ? err.message : 'Gagal memproses foto atau menyimpan produk.';
+    }
+  }
+}
+---
+
+<AdminLayout
+  title="Tambah produk"
+  notif={galat ? { jenis: 'err', teks: galat } : null}
+  kembali={{ href: '/admin', label: 'Katalog produk' }}
+>
+  <header class="mb-6">
+    <h1 class="text-xl font-bold tracking-tight text-stone-900">Tambah produk baru</h1>
+    <p class="text-sm text-stone-600">Produk langsung tampil di katalog publik setelah disimpan.</p>
+  </header>
+
+  <UnitForm csrf={csrf} action="/admin/tambah" tombolLabel="Simpan produk baru" nilai={nilaiForm} />
+</AdminLayout>

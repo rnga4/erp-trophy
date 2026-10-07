@@ -1,0 +1,158 @@
+---
+import '../styles/global.css';
+
+import { buatCsrf, cookieAman, COOKIE_AKUN } from '../lib/auth';
+import { createPengguna, simpanLapak, adaPengguna, ambilSite } from '../lib/db';
+import { teksForm } from '../lib/forms';
+import { sleep } from '../lib/waktu';
+import { terkunci, catatGagal, ipPengguna, type Kunci } from '../lib/ratelimit';
+import { normalisasiWa, waValid, inisial } from '../data/site';
+import Kembali from '../components/Kembali.astro';
+
+const csrf = buatCsrf();
+const site = await ambilSite();
+let galat: string | null = null;
+let nilai = { namaToko: '', whatsapp: '' };
+
+if (Astro.request.method === 'POST') {
+  const fd = await Astro.request.formData();
+  const dariCookie = Astro.cookies.get('hp_csrf')?.value;
+  if (!dariCookie || teksForm(fd, 'csrf') !== dariCookie) {
+    galat = 'Gagal verifikasi formulir. Muat ulang halaman lalu coba lagi.';
+  } else {
+    const ip = ipPengguna(Astro.request, Astro.clientAddress);
+    const kunci: Kunci = [`daftar:ip:${ip}`];
+    if (await terkunci(kunci)) {
+      galat = 'Terlalu banyak pendaftaran dari jaringan ini. Coba lagi 15 menit lagi.';
+    } else {
+      const namaToko = teksForm(fd, 'namaToko');
+      const whatsapp = normalisasiWa(teksForm(fd, 'whatsapp'));
+      const sandi = teksForm(fd, 'kataSandi');
+      nilai = { namaToko, whatsapp };
+
+      if (!namaToko) {
+        galat = 'Nama toko wajib diisi.';
+      } else if (!waValid(whatsapp)) {
+        galat = 'Nomor WhatsApp tidak valid. Tulis seperti 0812 3456 7890.';
+      } else if (sandi.length < 8) {
+        galat = 'Kata sandi minimal 8 karakter.';
+      } else if (sandi.length > 200) {
+        galat = 'Kata sandi maksimal 200 karakter.';
+      } else if (await adaPengguna(whatsapp)) {
+        galat = 'Nomor ini sudah dipakai akun lain. Satu seller satu nomor, satu akun.';
+      } else {
+        await sleep(300);
+        try {
+          const pengguna = await createPengguna({ nomor: whatsapp, nama: namaToko, kataSandi: sandi });
+          await simpanLapak(pengguna.id, { nama: namaToko, whatsapp });
+          Astro.cookies.set(COOKIE_AKUN, '', { path: '/', maxAge: 0 });
+          await catatGagal(kunci);
+          return Astro.redirect(pengguna.status === 'aktif' ? '/masuk?daftar=1' : '/masuk?daftar=1&tunggu=1');
+        } catch (err) {
+          galat = err instanceof Error ? err.message : 'Gagal membuat akun.';
+        }
+      }
+    }
+  }
+}
+
+// Sama seperti /masuk: token yang dirender harus selalu sama dengan cookie,
+// termasuk setelah percobaan gagal. Kalau cookie tidak diperbarui, formulir
+// yang sudah terisi benar akan ditolak saat dikirim ulang.
+Astro.cookies.set('hp_csrf', csrf, {
+  path: '/',
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: cookieAman(Astro.request, Astro.url),
+  maxAge: 3600,
+});
+---
+
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Daftar toko</title>
+    <link rel="icon" type="image/png+xml" href="/favicon.png" />
+  </head>
+  <body class="bg-dasar font-sans text-stone-900 antialiased">
+    <main class="flex min-h-dvh flex-col px-4 py-4">
+      <Kembali href="/" label="Beranda" mandiri />
+
+      <div class="flex flex-1 items-center justify-center py-12">
+        <div class="w-full max-w-sm">
+          <div class="mb-8 text-center">
+            <span class="mx-auto flex size-10 items-center justify-center rounded-md bg-stone-900 font-sans text-sm font-bold text-white">
+              {inisial(site.nama)}
+            </span>
+            <h1 class="mt-4 text-xl font-bold tracking-tight text-stone-900">Daftar jadi penjual</h1>
+            <p class="mt-1 text-sm text-stone-600">Satu akun untuk satu toko. Produkmu ditinjau dulu sebelum tayang.</p>
+          </div>
+
+          {
+            galat && (
+              <div class="mb-4 rounded-md border border-red-700 bg-red-50 px-4 py-3 text-sm text-red-900" role="alert">
+                {galat}
+              </div>
+            )
+          }
+
+          <form method="post" action="/daftar" class="flex flex-col gap-4">
+            <input type="hidden" name="csrf" value={csrf} />
+            <label class="flex flex-col gap-1.5">
+              <span class="text-sm font-medium text-stone-900">Nama toko <b class="text-red-800">*</b></span>
+              <input
+                name="namaToko"
+                required
+                maxlength="80"
+                value={nilai.namaToko}
+                placeholder="Contoh: Toko Juara"
+                autocomplete="organization"
+                class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none"
+              />
+            </label>
+            <label class="flex flex-col gap-1.5">
+              <span class="text-sm font-medium text-stone-900">Nomor WhatsApp <b class="text-red-800">*</b></span>
+              <input
+                type="tel"
+                name="whatsapp"
+                required
+                inputmode="numeric"
+                value={nilai.whatsapp}
+                placeholder="0812 3456 7890"
+                autocomplete="tel"
+                class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none"
+              />
+              <span class="text-xs text-stone-600">
+                Dipakai untuk masuk ke akunmu dan dihubungi pembeli lewat tombol di halaman produkmu. Satu
+                nomor hanya boleh satu akun.
+              </span>
+            </label>
+            <label class="flex flex-col gap-1.5">
+              <span class="text-sm font-medium text-stone-900">Kata sandi <b class="text-red-800">*</b></span>
+              <input
+                type="password"
+                name="kataSandi"
+                required
+                minlength="8"
+                maxlength="200"
+                autocomplete="new-password"
+                class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none"
+              />
+              <span class="text-xs text-stone-600">Minimal 8 karakter.</span>
+            </label>
+            <button type="submit" class="target-sentuh inline-flex items-center justify-center rounded-md bg-aksi px-4 text-sm font-semibold text-white hover:bg-emerald-800">
+              Buat toko
+            </button>
+          </form>
+
+          <p class="mt-6 text-center text-xs text-stone-500">
+            Sudah punya toko? <a href="/masuk" class="font-medium text-aksi-teks underline">Masuk di sini</a>
+          </p>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

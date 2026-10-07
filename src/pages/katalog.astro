@@ -1,0 +1,166 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { katalogUnit, listLapakTersedia, type Kondisi } from '../lib/db';
+import { PILIHAN_KONDISI } from '../lib/forms';
+import ProdukCard from '../components/ProdukCard.astro';
+import Paginasi from '../components/Paginasi.astro';
+
+const q = Astro.url.searchParams;
+const cari = (q.get('cari') ?? '').trim().slice(0, 80);
+const lapak = (q.get('lapak') ?? '').trim().slice(0, 80);
+const kondisiMentah = (q.get('kondisi') ?? '').trim().slice(0, 20);
+const kondisi = (PILIHAN_KONDISI.some((k) => k.nilai === kondisiMentah) ? kondisiMentah : '') as
+  | Kondisi
+  | '';
+const halaman = Number.parseInt(q.get('halaman') ?? '1', 10) || 1;
+
+const hasil = await katalogUnit({ cari, lapak, kondisi: kondisi || undefined, halaman });
+const sellerTersedia = await listLapakTersedia();
+const sellerDipilih = sellerTersedia.find((l) => l.slug === lapak) ?? null;
+const adaFilter = cari !== '' || lapak !== '' || kondisi !== '';
+
+// Kartu katalog tidak punya penanda "Terjual" (lihat DESIGN.md), jadi katalog
+// publik hanya menampilkan unit yang masih tersedia.
+---
+
+<BaseLayout
+  title={sellerDipilih ? `Katalog ${sellerDipilih.nama}` : 'Katalog'}
+  description="Katalog piala dan trophy yang tersedia, diurutkan dari yang paling murah. Setiap produk ditampilkan lengkap dengan foto dan harga."
+>
+  <section class="seks-luas mx-auto max-w-5xl px-4 sm:px-6">
+    <div class="grid gap-8 border-b border-garis pb-10 md:grid-cols-[1.4fr_1fr] md:gap-12">
+      <div class="flex flex-col gap-4">
+        <h1 class="judul-hero text-stone-900">
+          {sellerDipilih ? `Katalog ${sellerDipilih.nama}` : 'Katalog'}
+        </h1>
+        <p class="max-w-xl text-base text-stone-600 prosa">
+          Paling murah dulu. Tersedia berbagai model piala dan trophy untuk berbagai acara.
+          Cek halaman detail lalu tanya lewat WhatsApp.
+        </p>
+      </div>
+      <div class="flex flex-col justify-end gap-3 md:text-right">
+        {
+          !adaFilter && (
+            <p class="text-sm text-stone-600">{hasil.total} produk tersedia saat ini.</p>
+          )
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="seks-luas mx-auto max-w-5xl px-4 sm:px-6">
+    <div class="mb-6 flex flex-col gap-4">
+      <div>
+        <h2 class="kepala-seksi text-stone-900">Cari produk</h2>
+        <p class="text-sm text-stone-600">
+          {
+            adaFilter
+              ? `${hasil.total} produk tersedia cocok dengan filter ini.`
+              : 'Ketik nama, bahan, atau warna, lalu saring penjual dan kondisi.'
+          }
+        </p>
+      </div>
+
+      <form method="get" action="/katalog" class="flex flex-col gap-3 sm:flex-row">
+        <div class="flex-1">
+          <label for="cari" class="sr-only">Cari produk</label>
+          <input
+            id="cari"
+            type="search"
+            name="cari"
+            value={cari}
+            maxlength="80"
+            placeholder="Cari nama, bahan, atau warna"
+            class="target-sentuh w-full rounded-md border border-stone-500 bg-dasar px-3 py-2.5 text-sm text-stone-900 placeholder:text-stone-500 focus:border-aksi-teks focus:outline-none"
+          />
+        </div>
+        <div class="sm:w-56">
+          <label for="lapak" class="sr-only">Saring penjual</label>
+          <select
+            id="lapak"
+            name="lapak"
+            class="target-sentuh w-full rounded-md border border-stone-500 bg-dasar px-3 py-2.5 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none"
+          >
+            <option value="">Semua penjual</option>
+            {sellerTersedia.map((l) => (
+              <option value={l.slug} selected={l.slug === lapak}>
+                {l.nama} ({l.jumlah})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div class="sm:w-40">
+          <label for="kondisi" class="sr-only">Saring kondisi</label>
+          <select
+            id="kondisi"
+            name="kondisi"
+            class="target-sentuh w-full rounded-md border border-stone-500 bg-dasar px-3 py-2.5 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none"
+          >
+            <option value="">Semua kondisi</option>
+            {PILIHAN_KONDISI.map((k) => (
+              <option value={k.nilai} selected={k.nilai === kondisi}>
+                {k.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="submit"
+          class="target-sentuh rounded-md border border-stone-300 bg-dasar px-5 py-2.5 text-sm font-semibold text-stone-900 hover:bg-stone-100"
+        >
+          Terapkan
+        </button>
+      </form>
+
+      {
+        adaFilter && (
+          <p class="text-sm text-stone-600">
+            <a href="/katalog" class="target-sentuh text-aksi-teks inline-flex items-center underline">
+              Hapus filter
+            </a>
+          </p>
+        )
+      }
+    </div>
+
+    {
+      hasil.unit.length > 0 ? (
+        <>
+          <div class="tutup-bidang grid grid-cols-2 gap-0 border-t border-l border-garis md:grid-cols-3 lg:grid-cols-4">
+            {hasil.unit.map((unit, i) => (
+              <ProdukCard unit={unit} urut={i} penjualNama={unit.penjualNama} />
+            ))}
+          </div>
+          <Paginasi
+            halaman={hasil.halaman}
+            jumlahHalaman={hasil.jumlahHalaman}
+            cari={cari}
+            lapak={lapak}
+            kondisi={kondisi}
+          />
+        </>
+      ) : (
+        <div class="rounded-md border border-garis bg-stone-100 p-10 text-center">
+          <p class="font-semibold text-stone-900">
+            {              adaFilter ? 'Tidak ada produk yang cocok.' : 'Belum ada produk yang tayang.'}
+          </p>
+          <p class="mt-1 text-sm text-stone-600">
+            {
+              adaFilter
+                ? 'Coba kata kunci lain, atau saring semua penjual.'
+                : 'Semua produk sedang habis atau belum ditinjau.'
+            }
+          </p>
+          {adaFilter && (
+            <a
+              href="/katalog"
+              class="target-sentuh mt-4 inline-flex items-center rounded-md border border-stone-300 px-4 text-sm font-semibold text-stone-900 hover:bg-stone-100"
+            >
+              Hapus filter
+            </a>
+          )}
+        </div>
+      )
+    }
+  </section>
+</BaseLayout>

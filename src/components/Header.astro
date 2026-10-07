@@ -1,0 +1,108 @@
+---
+import { ambilLapak, ambilSite } from '../lib/db';
+import { inisial } from '../data/site';
+import { bacaSesi, COOKIE_ADMIN, COOKIE_AKUN } from '../lib/auth';
+import Kembali from './Kembali.astro';
+import MenuAkun from './MenuAkun.astro';
+
+interface Props {
+  /** Halaman tujuan tombol kembali. Null di Beranda, karena tidak ada halaman sebelumnya. */
+  kembali?: { href: string; label: string } | null;
+}
+
+const site = await ambilSite();
+const kembali = Astro.props.kembali ?? null;
+
+const admin = await bacaSesi(Astro.cookies, COOKIE_ADMIN, 'admin');
+const sesiSeller = await bacaSesi(Astro.cookies, COOKIE_AKUN, 'seller');
+
+/* Nav penuh, bukan hamburger. Empat item muat tanpa tekanan di lebar desktop,
+   dan menyembunyikannya di balik tombol berarti menambah satu klik ke setiap
+   tujuan tanpa alasan yang nyata: ruang di sini cukup. */
+const NAV = [
+  { label: 'Beranda', href: '/' },
+  { label: 'Katalog', href: '/katalog' },
+] as const;
+
+/* Admin diarahkan ke panel kerjanya, seller ke produknya sendiri, dan
+   pengunjung yang belum masuk ke halaman masuk. Identitas toko menempel di
+   pojok kanan atas pada semua lebar: seller melihat nama dan foto tokonya
+   (atau inisial kalau belum unggah), pengunjung melihat ikon orang. Tautan teks
+   hanya tersisa untuk admin, karena "Kelola" bukan akun pribadi. */
+const tokonya = sesiSeller?.penggunaId ? await ambilLapak(sesiSeller.penggunaId) : null;
+const hrefAkun = sesiSeller ? '/akun' : '/masuk';
+const labelAkun = tokonya?.nama ?? 'Toko saya';
+---
+
+<header class="header-tetap border-b border-garis bg-dasar">
+  <div class="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-6">
+    {
+      kembali ? (
+        <Kembali href={kembali.href} label={kembali.label} />
+      ) : (
+        <a href="/" class="target-sentuh flex min-w-0 items-center gap-2" aria-label="Beranda">
+          <span class="flex size-9 shrink-0 items-center justify-center rounded-md bg-stone-900 font-sans text-sm font-bold text-white">
+            {inisial(site.nama)}
+          </span>
+          <span class="truncate text-base font-bold tracking-tight text-stone-900">{site.nama}</span>
+        </a>
+      )
+    }
+    {/* Tautan nav atas hanya muat dari lebar desktop; di bawahnya bar bawah yang
+        jadi tempat utama. Identitas akun tetap di baris header pada semua lebar
+        supaya selalu terlihat akun siapa yang sedang dipakai. */}
+    <div class="ml-auto flex min-w-0 items-center gap-1">
+      <nav class="hidden items-center gap-1 md:flex" aria-label="Navigasi utama">
+        {
+          NAV.map((item) => (
+            <a
+              href={item.href}
+              class="target-sentuh inline-flex items-center rounded-md px-3 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-aksi-teks"
+            >
+              {item.label}
+            </a>
+          ))
+        }
+        {
+          admin && (
+            <a
+              href="/admin"
+              title="Kelola"
+              class="target-sentuh ml-1 inline-flex items-center rounded-md px-3 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-aksi-teks"
+            >
+              Kelola
+            </a>
+          )
+        }
+      </nav>
+      {
+        !admin &&
+          (sesiSeller ? (
+            <MenuAkun nama={labelAkun} foto={tokonya?.foto} csrf={sesiSeller.csrf} lapakSlug={tokonya?.slug} />
+          ) : (
+            <a
+              href={hrefAkun}
+              title="Masuk"
+              aria-label="Masuk"
+              class="target-sentuh inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-garis text-stone-600 hover:bg-stone-100 hover:text-aksi-teks"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="size-5"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="8.4" r="3.6" />
+                <path d="M4.8 20.2a7.2 7.2 0 0 1 14.4 0" />
+              </svg>
+            </a>
+          ))
+      }
+    </div>
+  </div>
+</header>
+

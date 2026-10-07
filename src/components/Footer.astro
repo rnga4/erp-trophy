@@ -1,0 +1,17 @@
+---
+import { ambilSite } from '../lib/db';
+
+const site = await ambilSite();
+---
+
+<footer class="border-t border-garis bg-dasar">
+  <div class="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6">
+    <div class="flex flex-col gap-2">
+      <p class="text-sm font-bold text-stone-900">{site.namaLengkap}</p>
+      <p class="max-w-md text-sm text-stone-600 prosa">{site.deskripsi}</p>
+    </div>
+    <div class="border-t border-garis pt-6 text-sm text-stone-600">
+      <p>Produk dijual oleh penjual independen. Hubungi via WhatsApp untuk info lebih lanjut.</p>
+    </div>
+  </div>
+</footer>

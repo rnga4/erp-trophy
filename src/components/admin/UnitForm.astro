@@ -1,0 +1,278 @@
+---
+import { PILIHAN_KONDISI } from '../../lib/forms';
+import type { UnitProduk, Kondisi } from '../../lib/db';
+import { fotoSrc } from '../../lib/foto';
+import { angkaRibuan } from '../../lib/format';
+
+interface Props {
+  csrf: string;
+  action: string;
+  tombolLabel: string;
+  nilai?: Partial<UnitProduk>;
+  gantiSlug?: boolean;
+  batalHref?: string;
+}
+
+const {
+  csrf,
+  action,
+  tombolLabel,
+  nilai = {},
+  gantiSlug = true,
+  batalHref = '/admin',
+} = Astro.props;
+const kondisi = (nilai.kondisi ?? 'mulus') as Kondisi;
+const textareaList = (arr?: string[]) => (arr && arr.length ? arr.join('\n') : '');
+const fotoTerpilih = nilai.foto ?? [];
+// URL thumbnail dihitung di server karena hanya server yang tahu varian mana
+// yang benar-benar ada di disk.
+const fotoAwal = fotoTerpilih.map((nama) => ({ nama, thumb: fotoSrc(nama, 'thumb') }));
+---
+
+<form method="post" action={action} enctype="multipart/form-data" data-simpan="Menyimpan…" class="flex flex-col gap-6">
+  <input type="hidden" name="csrf" value={csrf} />
+
+  <fieldset class="flex min-w-0 flex-col gap-3">
+    <legend class="text-sm font-bold text-stone-900">Identitas produk</legend>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <label class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium text-stone-900">Nama <b class="text-red-800">*</b></span>
+        <input name="nama" required value={nilai.nama ?? ''} class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none" />
+      </label>
+      <label class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium text-stone-900">Slug (URL)</span>
+        {
+          gantiSlug ? (
+            <input name="slug" placeholder="otomatis dari nama" value={nilai.slug ?? ''} class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm text-stone-900 focus:border-aksi-teks focus:outline-none" />
+          ) : (
+            <input name="slug" value={nilai.slug ?? ''} disabled class="target-sentuh rounded-md border border-stone-200 bg-stone-100 px-3 text-sm text-stone-600" />
+          )
+        }
+      </label>
+      <label class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium text-stone-900">Bahan</span>
+        <input name="merk" placeholder="resin, logam, kayu" value={nilai.merk ?? ''} class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm focus:border-aksi-teks focus:outline-none" />
+      </label>
+      <label class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium text-stone-900">Tinggi</span>
+        <input name="seri" placeholder="25 cm" value={nilai.seri ?? ''} class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm focus:border-aksi-teks focus:outline-none" />
+      </label>
+      <label class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium text-stone-900">Warna</span>
+        <input name="warna" placeholder="emas, perak" value={nilai.warna ?? ''} class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm focus:border-aksi-teks focus:outline-none" />
+      </label>
+    </div>
+  </fieldset>
+
+  <fieldset class="flex min-w-0 flex-col gap-3">
+    <legend class="text-sm font-bold text-stone-900">Harga & status</legend>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <label class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium text-stone-900">Harga jual (Rp) <b class="text-red-800">*</b></span>
+        <input name="harga" required inputmode="numeric" data-ribuan value={angkaRibuan(nilai.harga)} class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm focus:border-aksi-teks focus:outline-none" />
+      </label>
+      <label class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium text-stone-900">Harga coret (Rp, saat promo)</span>
+        <input name="hargaAsli" inputmode="numeric" data-ribuan value={angkaRibuan(nilai.hargaAsli)} class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm focus:border-aksi-teks focus:outline-none" />
+      </label>
+      <label class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium text-stone-900">Kondisi</span>
+        <select name="kondisi" class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm focus:border-aksi-teks focus:outline-none">
+          {
+            PILIHAN_KONDISI.map((k) => (
+              <option value={k.nilai} selected={kondisi === k.nilai}>{k.label}</option>
+            ))
+          }
+        </select>
+      </label>
+      <label class="target-sentuh flex items-center gap-2 self-end rounded-md border border-garis px-3">
+        <input type="checkbox" name="tersedia" checked={nilai.tersedia !== false} class="size-4" />
+        <span class="text-sm font-medium text-stone-900">Tersedia untuk dijual</span>
+      </label>
+    </div>
+  </fieldset>
+
+  <fieldset class="flex min-w-0 flex-col gap-3">
+    <legend class="text-sm font-bold text-stone-900">Keterangan</legend>
+    <label class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-stone-900">Deskripsi</span>
+      <textarea name="deskripsi" rows="4" class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm focus:border-aksi-teks focus:outline-none">{nilai.deskripsi ?? ''}</textarea>
+    </label>
+    <label class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-stone-900">Catatan kondisi (satu per baris)</span>
+      <textarea name="catatan" rows="4" placeholder="Goresan kecil di dasar piala
+Plat nama belum diukir" class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm focus:border-aksi-teks focus:outline-none">{textareaList(nilai.catatan)}</textarea>
+    </label>
+    <label class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-stone-900">Kelengkapan (satu per baris)</span>
+      <textarea name="kelengkapan" rows="3" placeholder="Piala
+Plakat" class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm focus:border-aksi-teks focus:outline-none">{textareaList(nilai.kelengkapan)}</textarea>
+    </label>
+  </fieldset>
+
+  <fieldset
+    class="flex min-w-0 flex-col gap-3"
+    data-foto-editor
+    data-foto-awal={JSON.stringify(fotoAwal)}
+  >
+    <legend class="text-sm font-bold text-stone-900">Foto</legend>
+
+    <ul data-foto-daftar style="display:none" class="flex flex-col gap-2"></ul>
+    <p data-foto-kosong style="display:none" class="text-sm text-stone-600">
+      Belum ada foto. Unggah di bawah.
+    </p>
+    <p data-foto-hint style="display:none" class="text-xs text-stone-600">
+      Foto pertama jadi sampul di katalog. Urutkan atau buang lewat tombol di tiap foto.
+    </p>
+
+    <label data-foto-teks class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-stone-900">Daftar foto (nama file, satu per baris)</span>
+      <textarea name="foto" rows="3" class="target-sentuh rounded-md border border-stone-500 bg-dasar px-3 text-sm focus:border-aksi-teks focus:outline-none">{textareaList(fotoTerpilih)}</textarea>
+    </label>
+    <label class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-stone-900">Upload foto baru (boleh banyak sekaligus)</span>
+      <input type="file" name="fotoBaru" accept="image/*" multiple class="target-sentuh min-w-0 max-w-full text-sm text-stone-600 file:mr-3 file:rounded-md file:border file:border-stone-500 file:bg-stone-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-stone-900" />
+    </label>
+    <p class="text-xs text-stone-500">File terupload otomatis ditambahkan ke daftar foto di atas.</p>
+  </fieldset>
+
+  <div class="flex flex-wrap items-center gap-3 border-t border-garis pt-5">
+    <button type="submit" class="target-sentuh inline-flex items-center rounded-md bg-aksi px-5 text-sm font-semibold text-white hover:bg-emerald-800">
+      {tombolLabel}
+    </button>
+    <a href={batalHref} class="target-sentuh inline-flex items-center rounded-md border border-stone-300 px-5 text-sm font-semibold text-stone-900 hover:bg-stone-100">
+      Batal
+    </a>
+  </div>
+</form>
+<script>
+  const rapikanRibuan = (input: HTMLInputElement) => {
+    const angka = input.value.replace(/\D/g, '').slice(0, 15);
+    input.value = angka ? Number(angka).toLocaleString('id-ID') : '';
+  };
+
+  for (const input of document.querySelectorAll<HTMLInputElement>('input[data-ribuan]')) {
+    input.addEventListener('input', () => {
+      const sebelum = input.value
+        .slice(0, input.selectionStart ?? input.value.length)
+        .replace(/\D/g, '').length;
+      rapikanRibuan(input);
+      let pos = 0;
+      let lihat = 0;
+      while (pos < input.value.length && lihat < sebelum) {
+        if (/\d/.test(input.value.charAt(pos))) lihat++;
+        pos++;
+      }
+      input.setSelectionRange(pos, pos);
+    });
+  }
+
+  for (const form of document.querySelectorAll<HTMLFormElement>('form[data-simpan]')) {
+    form.addEventListener('submit', () => {
+      for (const input of form.querySelectorAll<HTMLInputElement>('input[data-ribuan]')) {
+        input.value = input.value.replace(/\D/g, '');
+      }
+      const tombol = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+      if (!tombol) return;
+      tombol.textContent = form.dataset.simpan ?? 'Menyimpan…';
+      tombol.setAttribute('aria-busy', 'true');
+      setTimeout(() => (tombol.disabled = true), 0);
+    });
+  }
+  const editor = document.querySelector<HTMLElement>('[data-foto-editor]');
+  const bidang = editor?.querySelector<HTMLTextAreaElement>('textarea[name="foto"]');
+  const daftarEl = editor?.querySelector<HTMLElement>('[data-foto-daftar]');
+  if (editor && bidang && daftarEl) {
+    const kosong = editor.querySelector<HTMLElement>('[data-foto-kosong]');
+    const hint = editor.querySelector<HTMLElement>('[data-foto-hint]');
+    const labelTeks = editor.querySelector<HTMLElement>('[data-foto-teks]');
+    const daftar = JSON.parse(editor.dataset.fotoAwal ?? '[]') as { nama: string; thumb: string }[];
+
+    const simpan = () => {
+      bidang.value = daftar.map((f) => f.nama).join('\n');
+    };
+
+    const tombolAksi = (teks: string, label: string, aksi: () => void) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className =
+        'target-sentuh inline-flex min-w-11 items-center justify-center rounded-md border border-stone-500 bg-dasar px-2 text-xs font-semibold text-stone-900 hover:bg-stone-100';
+      b.textContent = teks;
+      b.setAttribute('aria-label', label);
+      b.addEventListener('click', aksi);
+      return b;
+    };
+
+    const gambar = () => {
+      daftarEl.replaceChildren();
+      if (kosong) kosong.style.display = daftar.length > 0 ? 'none' : 'block';
+      daftar.forEach((foto, i) => {
+        const baris = document.createElement('li');
+        baris.className =
+          'flex flex-wrap items-center gap-2 rounded-md border border-garis bg-dasar p-2';
+        const img = document.createElement('img');
+        img.src = foto.thumb;
+        img.alt = '';
+        img.className =
+          'size-16 shrink-0 rounded-md border border-garis bg-stone-100 object-cover';
+        baris.append(img);
+        if (i === 0) {
+          const sampul = document.createElement('span');
+          sampul.className =
+            'rounded-md border border-aksi-teks bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-aksi-teks';
+          sampul.textContent = 'Sampul';
+          baris.append(sampul);
+        }
+        const aksi = document.createElement('div');
+        aksi.className = 'ml-auto flex flex-wrap items-center justify-end gap-1';
+        if (i > 0) {
+          aksi.append(
+            tombolAksi('Sampul', 'Jadikan foto ini sampul', () => {
+              const pindah = daftar.splice(i, 1)[0]!;
+              daftar.unshift(pindah);
+              simpan();
+              gambar();
+            }),
+            tombolAksi('Naik', 'Pindahkan foto ini ke atas', () => {
+              const atas = daftar[i - 1]!;
+              daftar[i - 1] = daftar[i]!;
+              daftar[i] = atas;
+              simpan();
+              gambar();
+            }),
+          );
+        }
+        if (i < daftar.length - 1) {
+          aksi.append(
+            tombolAksi('Turun', 'Pindahkan foto ini ke bawah', () => {
+              const bawah = daftar[i + 1]!;
+              daftar[i + 1] = daftar[i]!;
+              daftar[i] = bawah;
+              simpan();
+              gambar();
+            }),
+          );
+        }
+        aksi.append(
+          tombolAksi('Buang', 'Buang foto ini dari daftar', () => {
+            daftar.splice(i, 1);
+            simpan();
+            gambar();
+          }),
+        );
+        baris.append(aksi);
+        daftarEl.append(baris);
+      });
+    };
+
+    labelTeks?.style.setProperty('display', 'none');
+    daftarEl.style.display = 'flex';
+    if (hint) hint.style.display = 'block';
+    simpan();
+    gambar();
+  }
+
+  addEventListener('pageshow', (e) => {
+    if (e.persisted) location.reload();
+  });
+</script>
