@@ -44,7 +44,7 @@ Pengecualian fungsional: warna border penanda kondisi (lihat Motif) memakai tiga
 
 ## Tipografi
 
-Plus Jakarta Sans. Alasannya: sans geometrik dengan lebar angka yang stabil, cocok untuk daftar yang banyak angka (harga, kapasitas, baterai) dan tetap terbaca di layar HP kecil. Bukan Inter atau Geist karena itu default pilihan AI (R-06).
+Plus Jakarta Sans. Alasannya: sans geometrik dengan lebar angka yang stabil, cocok untuk daftar yang banyak angka (harga, tinggi, ukuran) dan tetap terbaca di layar ponsel kecil. Bukan Inter atau Geist karena itu default pilihan AI (R-06).
 
 Skala fluid dengan `clamp()` supaya tidak melompat saat ganti breakpoint: `.judul-hero` (H1) 1.75rem ke 2.75rem, `.kepala-seksi` (H2) 1.35rem ke 1.75rem, body 1rem/1.625rem. Classes ini di `src/styles/global.css`, jangan pakai `text-3xl sm:text-4xl` manual.
 
@@ -75,7 +75,7 @@ Beranda bukan katalog. Ia menjawab "toko ini isinya apa dan siapa yang jual" dal
 
 ## Katalog: paginasi, pencarian, filter penjual dan kondisi
 
-Katalog tidak pernah memuat seluruh tabel. `katalogUnit()` di `src/lib/db.ts` menjalankan satu `COUNT` dan satu `SELECT` berparameter, lalu mengiris sendiri di SQL dengan `LIMIT`/`OFFSET`. Kalau katalog tumbuh ke ribuan unit, halaman `/` tetap memuat 24 baris, bukan semuanya.
+Katalog tidak pernah memuat seluruh tabel. `katalogUnit()` di `src/lib/db.ts` menjalankan satu `COUNT` dan satu `SELECT` berparameter, lalu mengiris sendiri di SQL dengan `LIMIT`/`OFFSET`. Kalau katalog tumbuh ke ribuan unit, halaman `/katalog` tetap memuat 24 baris, bukan semuanya.
 
 - **Pencarian.** Kata kunci dipecah per kata dan setiap kata harus cocok (AND) di nama, merek, seri, storage, warna, atau deskripsi. `%`, `_`, dan `\` di kata kunci di-escape supaya `LIKE` memperlakukannya sebagai teks biasa, bukan wildcard. Maksimal enam kata, supaya query tidak bisa dipakai membebani database.
 - **Filter penjual.** Dropdown diisi `listLapakTayang()`, yaitu lapak yang punya minimal satu unit tayang. Jadi tidak ada pilihan yang hasilnya selalu kosong.
@@ -99,7 +99,7 @@ Semua kontrol interaktif punya area sentuh minimal 44x44px (R-03, WCAG 2.5.8). D
 RHYTHM 2, tidak seragam. Komposisi tiap seksi berbeda (disesuaikan isi saat eksekusi):
 
 - Beranda: hero satu kolom pendek, strip angka ringkas, daftar penjual, lalu pengumuman. Tanpa grid unit.
-- Katalog (`/katalog`): hero ringkas dengan pencarian, lalu grid dua kolom (HP) sampai empat kolom (layar lebar).
+- Katalog (`/katalog`): hero ringkas dengan pencarian, lalu grid dua kolom (layar kecil) sampai empat kolom (layar lebar).
 - Detail unit: galeri foto di kiri, informasi harga dan kondisi di kanan, spesifikasi sebagai daftar garis bawah, bukan kartu. Di mobile judul, status, dan ringkasan muncul di atas foto; harga dan tombol tetap di bawahnya.
 
 Padding seksi bervariasi: `seks-luas` (4.5rem) untuk blok berlatar penuh, `seks-rapat` (2.5rem) untuk daftar padat.
@@ -112,7 +112,7 @@ MOTION 1: hanya hover dan transisi halus saat ganti foto galeri. Tidak ada loop,
 
 ## Navigasi: kembali di header, tujuan utama di bawah
 
-Navigasi mengikuti cara orang memakai katalog di HP, bukan tata letak dokumen.
+Navigasi mengikuti cara orang memakai katalog di ponsel, bukan tata letak dokumen.
 
 - **Tombol kembali di kiri atas, halaman demi halaman.** Halaman yang punya halaman sebelumnya menampilkan chevron kiri plus nama tujuannya (`← Katalog`, `← Unit katalog`), menggantikan logo toko di sisi itu. Logo pindah ke footer yang sudah menampilkannya, jadi branding tidak hilang. Beranda tidak punya tombol kembali karena tidak ada halaman sebelumnya, dan tombol kembali yang ada selalu menyisakan `href` yang benar: tanpa JavaScript tetap sampai ke katalog, dan `history.back()` cuma dipakai kalau `referrer` masih di situs ini, supaya pengunjung dari tautan WhatsApp tidak justru dilempar keluar.
 - **Tujuan utama pindah ke bar bawah di bawah 768px.** Dua tautan nav atas tidak muat bersama logo di 360px, jadi di lebar itu nav atas disembunyikan dan digantikan bar bawah: Beranda, Katalog, lalu tab terakhir yang selalu ada. Di atas 768px bar bawah hilang dan nav atas kembali, karena bar fixed di monitor besar cuma memakan ruang. Ikonnya digambar sendiri sebagai glyph fungsional (rumah, grid, roda setelan, orang), bukan dari set ikon generik. Kalau seller sudah masuk, tab Akun memakai foto tokonya (atau inisial kalau belum ada foto) menggantikan glyph orang, jadi bar bawah menjawab akun siapa yang sedang dipakai, bukan sekadar menandai halaman.
@@ -145,7 +145,7 @@ Panel admin bukan halaman pemasaran, jadi gaya utilitarian: rapat, tanpa hero, t
 - **Aksen per layar.** Halaman daftar unit: aksen dipakai di tombol "Tambah unit" dan penanda status. Halaman form: aksen hanya di tombol submit. Halaman login: aksen hanya di tombol "Masuk". Tidak ada tombol warna aksen lain di layar yang sama. WhatsApp bukan lagi pengecualian di header: tombol generik di header dan footer sudah dihapus, jadi tiap layar hanya punya satu aksen pada aksinya sendiri. Beranda: "Lihat katalog". Katalog: "Tanya stok terbaru", sementara tombol submit filter "Terapkan" sengaja netral dan tetap ada saat filter aktif. Detail unit: tombol tanya aksen selama unit tersedia; unit terjual memakai tombol bergaris "Tanyakan unit lain lewat WhatsApp".
   - **Identitas seller selalu di pojok kanan atas.** Header publik menampilkan Beranda dan Katalog lalu identitas akun di ujung kanan pada semua lebar: seller melihat nama toko dan foto tokonya (atau inisial kalau belum ada foto) yang menaut ke `/akun`, pengunjung melihat ikon orang ke `/masuk`, dan admin melihat teks `Kelola`. Identitas seller tidak lagi cuma tampil di desktop; di mobile ia tetap di baris header, sebaris dengan logo atau tombol kembali, sementara tautan Beranda dan Katalog digantikan bar bawah. Beranda dan Katalog sekarang halaman terpisah, jadi tiap link punya tujuan sendiri (`/` dan `/katalog`) dan tidak ada tab aktif yang bergeser mengikuti gulir seperti dulu di bar bawah.
   - **Header publik menempel, header kerja tidak.** Katalog bisa panjang dan tidak semua halaman punya footer yang jelas, jadi header halaman publik `sticky` di atas: tanpa itu orang yang menggulir ke bawah kehilangan jalan kembali ke Katalog dan ke Akun. Sticky, bukan fixed, supaya posisinya tetap mengambil ruang di dalam dokumen dan tidak ada lompatan saat halaman dimuat. Header Admin dan Akun tidak ikut menempel, karena isinya bukan buat dibaca panjang: di mobile header Admin jadi dua baris setinggi 169px, dan space yang tersisa buat isi formnya akan tinggal sedikit. Keduanya juga sengaja dibuat ringkas supaya halaman edit unit seller masih menyisakan ruang yang layak.
-- **Daftar, bukan tabel.** Daftar unit memakai baris (flex, bukan `<table>`): satu foto kecil, nama dan harga, lalu aksi. Tabel asli memaksa kolom punya lebar tetap dan menyempit di layar HP; baris menumpuk rapi di 390px tanpa mengubah struktur. Status Tersedia/Terjual tidak disembunyikan di layar kecil: itu field yang menentukan keputusan seller, jadi ia yang terakhir boleh hilang, bukan pertama. Seller menandainya sendiri lewat tombol "Tandai terjual"/"Tandai tersedia" di baris itu. Tombol aksinya (status, Ubah, Lihat halaman, Hapus) turun ke baris sendiri di bawah 640px supaya semuanya tetap punya area sentuh 44px.
+- **Daftar, bukan tabel.** Daftar unit memakai baris (flex, bukan `<table>`): satu foto kecil, nama dan harga, lalu aksi. Tabel asli memaksa kolom punya lebar tetap dan menyempit di layar ponsel; baris menumpuk rapi di 390px tanpa mengubah struktur. Status Tersedia/Terjual tidak disembunyikan di layar kecil: itu field yang menentukan keputusan seller, jadi ia yang terakhir boleh hilang, bukan pertama. Seller menandainya sendiri lewat tombol "Tandai terjual"/"Tandai tersedia" di baris itu. Tombol aksinya (status, Ubah, Lihat halaman, Hapus) turun ke baris sendiri di bawah 640px supaya semuanya tetap punya area sentuh 44px.
 - **Bukti sebelum merusak.** Hapus unit selalu dua langkah: klik "Hapus" memunculkan konfirmasi yang menyebut nama unit dan akibatnya, baru tombol "Ya, hapus". Panel konfirmasi muncul di baris unit itu, bukan di atas daftar, lalu digulir ke tengah layar dan fokusnya ditarik ke tombol "Ya, hapus". Di atas daftar, seller harus menggulir ulang dari awal hanya untuk membaca peringatan. Feedback setelah aksi berupa satu baris pesan di atas konten, hilang saat halaman berikutnya dimuat (lewat parameter `?notif=`), bukan toast yang menumpuk. Karena itu halaman admin hanya melompat ke atas kalau ada pesan; halaman konfirmasi hapus mengatur posisinya sendiri.
 - **State kosong.** "Belum ada unit" ditulis sebagai kalimat biasa dengan satu aksi lanjutan, bukan ilustrasi. Di halaman publik berlaku aturan yang sama: bagian yang tidak punya isi tidak dikosongkan diam-diam. Deskripsi, Spesifikasi, dan Kelengkapan yang kosong diganti kalimat jujur yang memberi langkah lanjut, sementara "Kondisi unit" yang kosong hilang seluruhnya, mengikuti guard yang sudah dipakai di `catatan`. Subjudul dan kartu memakai helper `gabung()` di `src/lib/format.ts` supaya pemisah `·` tidak pernah berdiri sendiri saat field opsional kosong.
 - **Form.** Label selalu ada di atas field (tanpa placeholder sebagai label), field wajib ditandai `<b>*</b>`, bantuan field seperti "satu per baris" ditulis kecil di bawahnya. Area unggah foto menampilkan thumbnail tiap foto yang sudah terpasang. Seller bisa membuang, memindah naik/turun, atau menjadikan sampul lewat tombol di thumbnail, tanpa mengetik nama file; tanpa JavaScript, textarea nama file tetap muncul sebagai cadangan.
@@ -155,7 +155,7 @@ Panel admin bukan halaman pemasaran, jadi gaya utilitarian: rapat, tanpa hero, t
 - **Batasan admin.** Layout admin dan halaman login memakai `noindex, nofollow`. Panel ini tidak untuk indeks mesin pencari.
 ## Foto: satu unggah, tiga ukuran
 
-Foto HP dari kamera smartphone sekitar 3-8 MB dan berdimensi ribuan piksel. Kalau file asli dipakai apa adanya di daftar dan thumbnail, satu halaman detail menarik belasan megabyte hanya untuk sesuatu yang isinya satu HP.
+Foto dari kamera smartphone sekitar 3-8 MB dan berdimensi ribuan piksel. Kalau file asli dipakai apa adanya di daftar dan thumbnail, satu halaman detail menarik belasan megabyte hanya untuk satu produk.
 
 Aturannya: seller tetap mengunggah seperti biasa, pemrosesan terjadi di server dan tidak terlihat olehnya.
 

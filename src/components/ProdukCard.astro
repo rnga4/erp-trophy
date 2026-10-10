@@ -18,6 +18,9 @@ const { unit, urut = 0, penjualNama, lapakSlug } = Astro.props;
 const coret = hargaTercoret(unit);
 const fotoUtama = unit.foto[0] ?? null;
 const ringkas = gabung([unit.merk, unit.seri]);
+// Dua-titik penghubung hanya ditulis kalau warnanya ada, supaya alt tidak
+// berakhir sebagai "Foto X: " saat kolom warna kosong.
+const altFoto = unit.warna ? `Foto ${unit.nama}: ${unit.warna}` : `Foto ${unit.nama}`;
 ---
 
 <a
@@ -31,7 +34,7 @@ const ringkas = gabung([unit.merk, unit.seri]);
       fotoUtama && (
         <img
           src={fotoSrc(fotoUtama, 'thumb')}
-          alt={`Foto ${unit.nama}: ${unit.warna}`}
+          alt={altFoto}
           data-fade
           loading="lazy"
           decoding="async"
@@ -50,7 +53,7 @@ const ringkas = gabung([unit.merk, unit.seri]);
     <h3 class="text-sm font-semibold text-stone-900">{unit.nama}</h3>
     {
       penjualNama && (
-        <p class="truncate text-xs text-stone-500">
+        <p class="truncate text-xs text-stone-600">
           {'Dijual oleh '}
           {lapakSlug ? (
             <span class="underline decoration-stone-300">{penjualNama}</span>
@@ -70,7 +73,7 @@ const ringkas = gabung([unit.merk, unit.seri]);
       }
       {
         coret && (
-          <span class="text-xs text-stone-500 line-through">{rupiah(coret)}</span>
+          <span class="text-xs text-stone-600 line-through">{rupiah(coret)}</span>
         )
       }
     </div>

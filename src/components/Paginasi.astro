@@ -38,9 +38,10 @@ for (let n = 1; n <= jumlahHalaman; n++) {
       <a
         href={tautan(Math.max(1, halaman - 1))}
         aria-disabled={halaman === 1 ? 'true' : 'false'}
+        tabindex={halaman === 1 ? -1 : undefined}
         class={`target-sentuh inline-flex h-10 items-center rounded-md border border-garis px-3 text-sm font-medium ${
           halaman === 1
-            ? 'pointer-events-none text-stone-400'
+            ? 'pointer-events-none text-stone-500'
             : 'text-stone-700 hover:bg-stone-100'
         }`}
       >
@@ -53,7 +54,7 @@ for (let n = 1; n <= jumlahHalaman; n++) {
         return (
           <>
             {lewati && (
-              <span class="px-1 text-sm text-stone-400" aria-hidden="true">
+              <span class="px-1 text-sm text-stone-500" aria-hidden="true">
                 …
               </span>
             )}
@@ -75,9 +76,10 @@ for (let n = 1; n <= jumlahHalaman; n++) {
       <a
         href={tautan(Math.min(jumlahHalaman, halaman + 1))}
         aria-disabled={halaman === jumlahHalaman ? 'true' : 'false'}
+        tabindex={halaman === jumlahHalaman ? -1 : undefined}
         class={`target-sentuh inline-flex h-10 items-center rounded-md border border-garis px-3 text-sm font-medium ${
           halaman === jumlahHalaman
-            ? 'pointer-events-none text-stone-400'
+            ? 'pointer-events-none text-stone-500'
             : 'text-stone-700 hover:bg-stone-100'
         }`}
       >

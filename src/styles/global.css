@@ -13,9 +13,14 @@
 
 @theme {
   --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
-  --color-aksi: #b45309;
-  --color-aksi-teks: #92400e;
-  --color-dasar: #fefbf3;
+  /* Aksen mengikat ke DESIGN.md, bagian Palet: emerald-700 untuk tombol utama
+     (5.02:1 dengan teks putih) dan emerald-800 untuk teks aksen (6.62:1 di
+     stone-50). Tiga token ini pernah diganti ke amber tanpa ikut memperbarui
+     DESIGN.md, sehingga hover setiap tombol tertinggal emerald; keduanya
+     dikembalikan sejalan. */
+  --color-aksi: #047857;
+  --color-aksi-teks: #065f46;
+  --color-dasar: #fafaf9;
   --color-garis: #e7e5e4;
 }
 

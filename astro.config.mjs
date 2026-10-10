@@ -16,13 +16,18 @@ function allowedDomainsDariSiteUrl(siteUrl) {
   const pola = [];
   try {
     const u = new URL(siteUrl);
-    if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') return pola;
-    /** @type {{ hostname: string; protocol?: string; port?: string }} */
-    const satu = { hostname: u.hostname };
-    if (u.protocol === 'https:') satu.protocol = 'https';
-    else if (u.protocol === 'http:') satu.protocol = 'http';
-    if (u.port) satu.port = u.port;
-    pola.push(satu);
+    // Host SITE_URL tidak dijadikan pola saat masih localhost (konfigurasi dev
+    // di host), tapi itu bukan alasan berhenti: SECURITY_ALLOWED_HOST tetap
+    // harus dibaca di bawah supaya bisa memercayai X-Forwarded-Proto dari
+    // tunnel/nginx.
+    if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') {
+      /** @type {{ hostname: string; protocol?: string; port?: string }} */
+      const satu = { hostname: u.hostname };
+      if (u.protocol === 'https:') satu.protocol = 'https';
+      else if (u.protocol === 'http:') satu.protocol = 'http';
+      if (u.port) satu.port = u.port;
+      pola.push(satu);
+    }
   } catch {
     /* SITE_URL tidak valid — biarkan kosong */
   }
